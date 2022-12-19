@@ -1,0 +1,235 @@
+<launch>
+    <arg name="model" default="$(env TURTLEBOT3_MODEL)" doc="model type [burger, waffle, waffle_pi]"/>
+    <arg name="first_tb3"  default="tb3_0"/>
+    <arg name="second_tb3"  default="tb3_1"/>
+    <arg name="third_tb3"  default="tb3_2"/>
+    <arg name="fourth_tb3"  default="tb3_3"/>
+
+    <!-- the position and orientation of the bot1 -->
+    <arg name="first_tb3_x_pos" default="1.7"/>
+    <arg name="first_tb3_y_pos" default="1.7"/>
+    <arg name="first_tb3_z_pos" default="0.0"/>
+    <arg name="first_tb3_yaw"   default="3.927"/>
+    
+    <!-- the position and orientation of the bot2 -->
+    <arg name="second_tb3_x_pos" default="1.7"/>
+    <arg name="second_tb3_y_pos" default="-1.7"/>
+    <arg name="second_tb3_z_pos" default="0.0"/>
+    <arg name="second_tb3_yaw"   default="2.365"/>
+    
+    <!-- the position and orientation of the bot3 -->
+    <arg name="third_tb3_x_pos" default="-1.7"/>
+    <arg name="third_tb3_y_pos" default="1.7"/>
+    <arg name="third_tb3_z_pos" default="0.0"/>
+    <arg name="third_tb3_yaw"   default="5.498"/>
+    
+    <!-- the position and orientation of the bot4 -->
+    <arg name="fourth_tb3_x_pos" default="-1.7"/>
+    <arg name="fourth_tb3_y_pos" default="-1.7"/>
+    <arg name="fourth_tb3_z_pos" default="0.0"/>
+    <arg name="fourth_tb3_yaw"   default="0.785"/>
+
+    <arg name="urdf_file" default="$(find xacro)/xacro --inorder '$(find turtlebot3_description)/urdf/turtlebot3_$(arg model).urdf.xacro'" />
+    <!-- Loads robot_description to parameter server from URDF file-->
+    <param name="robot_description" command="$(arg urdf_file)" />
+
+    <!-- 设置地图的配置文件 -->
+    <arg name="map" default="mbot.yaml" />
+    <!-- 运行地图服务器，并且加载设置的地图-->
+    <node name="map_server" pkg="map_server" type="map_server" args="$(find mbot)/maps/$(arg map)"/>
+    <!-- 将地图向机器人集群广播 -->
+    <node pkg="tf" type="static_transform_publisher" name="world_to_$(arg first_tb3)_tf_broadcaster"  args="0 0 0 0 0 0 /map /$(arg first_tb3)/odom 100"/>
+    <node pkg="tf" type="static_transform_publisher" name="world_to_$(arg second_tb3)_tf_broadcaster" args="0 0 0 0 0 0 /map /$(arg second_tb3)/odom 100"/>
+    <node pkg="tf" type="static_transform_publisher" name="world_to_$(arg third_tb3)_tf_broadcaster" args="0 0 0 0 0 0 /map /$(arg third_tb3)/odom 100"/>
+    <node pkg="tf" type="static_transform_publisher" name="world_to_$(arg fourth_tb3)_tf_broadcaster"  args="0 0 0 0 0 0 /map /$(arg fourth_tb3)/odom 100"/>
+
+    <!-- First Robot -->
+    <group ns = "$(arg first_tb3)">
+ 
+        <!-- AMCL -->
+        <node pkg="amcl" type="amcl" name="amcl">
+            <!-- Load default parameters for turtlebot -->
+            <rosparam file="$(find mbot)/param/amcl_params.yaml" command="load" />
+            <param name="initial_pose_x" value="$(arg first_tb3_x_pos)"/>
+            <param name="initial_pose_y" value="$(arg first_tb3_y_pos)"/>
+            <param name="initial_pose_a" value="$(arg first_tb3_yaw)"/>
+
+            <param name="odom_frame_id"  value="tb3_0/odom"/>
+            <param name="base_frame_id"  value="tb3_0/base_footprint"/>
+            <!-- Use the single map server -->
+            <remap from="static_map" to="/static_map"/>
+        </node>
+
+        <node pkg="move_base" type="move_base" respawn="false" name="move_base">
+            <!-- Default configs form the TB3 repos -->
+            <param name="base_local_planner" value="dwa_local_planner/DWAPlannerROS" />
+            <rosparam file="$(find turtlebot3_navigation)/param/costmap_common_params_$(arg model).yaml" command="load" ns="global_costmap" />
+            <rosparam file="$(find turtlebot3_navigation)/param/costmap_common_params_$(arg model).yaml" command="load" ns="local_costmap" />
+            <rosparam file="$(find turtlebot3_navigation)/param/local_costmap_params.yaml" command="load" />
+            <rosparam file="$(find turtlebot3_navigation)/param/global_costmap_params.yaml" command="load" />
+            <rosparam file="$(find turtlebot3_navigation)/param/move_base_params.yaml" command="load" />
+            <rosparam file="$(find turtlebot3_navigation)/param/dwa_local_planner_params_$(arg model).yaml" command="load" />
+      
+            <!-- Set tf_prefix for frames explicity, overwriting defaults -->
+            <param name="global_costmap/scan/sensor_frame" value="$(arg first_tb3)/base_scan"/>
+            <param name="global_costmap/obstacle_layer/scan/sensor_frame"
+               value="$(arg first_tb3)/base_scan"/>
+            <param name="global_costmap/global_frame" value="map"/>
+            <param name="global_costmap/robot_base_frame"
+               value="$(arg first_tb3)/base_footprint"/>
+            <param name="local_costmap/scan/sensor_frame" value="$(arg first_tb3)/base_scan"/>
+            <param name="local_costmap/obstacle_layer/scan/sensor_frame"
+               value="$(arg first_tb3)/base_scan"/>
+            <param name="local_costmap/global_frame" value="$(arg first_tb3)/odom"/>
+            <param name="local_costmap/robot_base_frame"
+               value="$(arg first_tb3)/base_footprint"/>
+      
+            <!-- Centralized map server -->
+            <remap from="map" to="/map"/>
+            <param name="DWAPlannerROS/min_vel_x" value="0.0" if="False" />
+          </node>
+  </group>
+
+  <!-- Second Robot -->
+  <group ns = "$(arg second_tb3)">
+ 
+    <!-- AMCL -->
+    <node pkg="amcl" type="amcl" name="amcl">
+        <!-- Load default parameters for turtlebot -->
+        <rosparam file="$(find mbot)/param/amcl_params.yaml" command="load" />
+        <param name="initial_pose_x" value="$(arg second_tb3_x_pos)"/>
+        <param name="initial_pose_y" value="$(arg second_tb3_y_pos)"/>
+        <param name="initial_pose_a" value="$(arg second_tb3_yaw)"/>
+
+        <param name="odom_frame_id"  value="$(arg second_tb3)/odom"/>
+        <param name="base_frame_id"  value="$(arg second_tb3)/base_footprint"/>
+        <!-- Use the single map server -->
+        <remap from="static_map" to="/static_map"/>
+    </node>
+
+    <node pkg="move_base" type="move_base" respawn="false" name="move_base">
+        <!-- Default configs form the TB3 repos -->
+        <param name="base_local_planner" value="dwa_local_planner/DWAPlannerROS" />
+        <rosparam file="$(find turtlebot3_navigation)/param/costmap_common_params_$(arg model).yaml" command="load" ns="global_costmap" />
+        <rosparam file="$(find turtlebot3_navigation)/param/costmap_common_params_$(arg model).yaml" command="load" ns="local_costmap" />
+        <rosparam file="$(find turtlebot3_navigation)/param/local_costmap_params.yaml" command="load" />
+        <rosparam file="$(find turtlebot3_navigation)/param/global_costmap_params.yaml" command="load" />
+        <rosparam file="$(find turtlebot3_navigation)/param/move_base_params.yaml" command="load" />
+        <rosparam file="$(find turtlebot3_navigation)/param/dwa_local_planner_params_$(arg model).yaml" command="load" />
+  
+        <!-- Set tf_prefix for frames explicity, overwriting defaults -->
+        <param name="global_costmap/scan/sensor_frame" value="$(arg second_tb3)/base_scan"/>
+        <param name="global_costmap/obstacle_layer/scan/sensor_frame"
+           value="$(arg second_tb3)/base_scan"/>
+        <param name="global_costmap/global_frame" value="map"/>
+        <param name="global_costmap/robot_base_frame"
+           value="$(arg second_tb3)/base_footprint"/>
+        <param name="local_costmap/scan/sensor_frame" value="$(arg second_tb3)/base_scan"/>
+        <param name="local_costmap/obstacle_layer/scan/sensor_frame"
+           value="$(arg second_tb3)/base_scan"/>
+        <param name="local_costmap/global_frame" value="$(arg second_tb3)/odom"/>
+        <param name="local_costmap/robot_base_frame"
+           value="$(arg second_tb3)/base_footprint"/>
+  
+        <!-- Centralized map server -->
+        <remap from="map" to="/map"/>
+        <param name="DWAPlannerROS/min_vel_x" value="0.0" if="False" />
+      </node>
+</group>
+
+<!-- Third Robot -->
+<group ns = "$(arg third_tb3)">
+ 
+    <!-- AMCL -->
+    <node pkg="amcl" type="amcl" name="amcl">
+        <!-- Load default parameters for turtlebot -->
+        <rosparam file="$(find mbot)/param/amcl_params.yaml" command="load" />
+        <param name="initial_pose_x" value="$(arg third_tb3_x_pos)"/>
+        <param name="initial_pose_y" value="$(arg third_tb3_y_pos)"/>
+        <param name="initial_pose_a" value="$(arg third_tb3_yaw)"/>
+
+        <param name="odom_frame_id"  value="$(arg third_tb3)/odom"/>
+        <param name="base_frame_id"  value="$(arg third_tb3)/base_footprint"/>
+        <!-- Use the single map server -->
+        <remap from="static_map" to="/static_map"/>
+    </node>
+
+    <node pkg="move_base" type="move_base" respawn="false" name="move_base">
+        <!-- Default configs form the TB3 repos -->
+        <param name="base_local_planner" value="dwa_local_planner/DWAPlannerROS" />
+        <rosparam file="$(find turtlebot3_navigation)/param/costmap_common_params_$(arg model).yaml" command="load" ns="global_costmap" />
+        <rosparam file="$(find turtlebot3_navigation)/param/costmap_common_params_$(arg model).yaml" command="load" ns="local_costmap" />
+        <rosparam file="$(find turtlebot3_navigation)/param/local_costmap_params.yaml" command="load" />
+        <rosparam file="$(find turtlebot3_navigation)/param/global_costmap_params.yaml" command="load" />
+        <rosparam file="$(find turtlebot3_navigation)/param/move_base_params.yaml" command="load" />
+        <rosparam file="$(find turtlebot3_navigation)/param/dwa_local_planner_params_$(arg model).yaml" command="load" />
+  
+        <!-- Set tf_prefix for frames explicity, overwriting defaults -->
+        <param name="global_costmap/scan/sensor_frame" value="$(arg third_tb3)/base_scan"/>
+        <param name="global_costmap/obstacle_layer/scan/sensor_frame"
+           value="$(arg third_tb3)/base_scan"/>
+        <param name="global_costmap/global_frame" value="map"/>
+        <param name="global_costmap/robot_base_frame"
+           value="$(arg third_tb3)/base_footprint"/>
+        <param name="local_costmap/scan/sensor_frame" value="$(arg third_tb3)/base_scan"/>
+        <param name="local_costmap/obstacle_layer/scan/sensor_frame"
+           value="$(arg third_tb3)/base_scan"/>
+        <param name="local_costmap/global_frame" value="$(arg third_tb3)/odom"/>
+        <param name="local_costmap/robot_base_frame"
+           value="$(arg third_tb3)/base_footprint"/>
+  
+        <!-- Centralized map server -->
+        <remap from="map" to="/map"/>
+        <param name="DWAPlannerROS/min_vel_x" value="0.0" if="False" />
+      </node>
+</group>
+
+<!-- Fourth Robot -->
+<group ns = "$(arg fourth_tb3)">
+ 
+    <!-- AMCL -->
+    <node pkg="amcl" type="amcl" name="amcl">
+        <!-- Load default parameters for turtlebot -->
+        <rosparam file="$(find mbot)/param/amcl_params.yaml" command="load" />
+        <param name="initial_pose_x" value="$(arg fourth_tb3_x_pos)"/>
+        <param name="initial_pose_y" value="$(arg fourth_tb3_y_pos)"/>
+        <param name="initial_pose_a" value="$(arg fourth_tb3_yaw)"/>
+
+        <param name="odom_frame_id"  value="$(arg fourth_tb3)/odom"/>
+        <param name="base_frame_id"  value="$(arg fourth_tb3)/base_footprint"/>
+        <!-- Use the single map server -->
+        <remap from="static_map" to="/static_map"/>
+    </node>
+
+    <node pkg="move_base" type="move_base" respawn="false" name="move_base" >
+        <!-- Default configs form the TB3 repos -->
+        <param name="base_local_planner" value="dwa_local_planner/DWAPlannerROS" />
+        <rosparam file="$(find turtlebot3_navigation)/param/costmap_common_params_$(arg model).yaml" command="load" ns="global_costmap" />
+        <rosparam file="$(find turtlebot3_navigation)/param/costmap_common_params_$(arg model).yaml" command="load" ns="local_costmap" />
+        <rosparam file="$(find turtlebot3_navigation)/param/local_costmap_params.yaml" command="load" />
+        <rosparam file="$(find turtlebot3_navigation)/param/global_costmap_params.yaml" command="load" />
+        <rosparam file="$(find turtlebot3_navigation)/param/move_base_params.yaml" command="load" />
+        <rosparam file="$(find turtlebot3_navigation)/param/dwa_local_planner_params_$(arg model).yaml" command="load" />
+  
+        <!-- Set tf_prefix for frames explicity, overwriting defaults -->
+        <param name="global_costmap/scan/sensor_frame" value="$(arg fourth_tb3)/base_scan"/>
+        <param name="global_costmap/obstacle_layer/scan/sensor_frame"
+           value="$(arg fourth_tb3)/base_scan"/>
+        <param name="global_costmap/global_frame" value="map"/>
+        <param name="global_costmap/robot_base_frame"
+           value="$(arg fourth_tb3)/base_footprint"/>
+        <param name="local_costmap/scan/sensor_frame" value="$(arg fourth_tb3)/base_scan"/>
+        <param name="local_costmap/obstacle_layer/scan/sensor_frame"
+           value="$(arg fourth_tb3)/base_scan"/>
+        <param name="local_costmap/global_frame" value="$(arg fourth_tb3)/odom"/>
+        <param name="local_costmap/robot_base_frame"
+           value="$(arg fourth_tb3)/base_footprint"/>
+  
+        <!-- Centralized map server -->
+        <remap from="map" to="/map"/>
+        <param name="DWAPlannerROS/min_vel_x" value="0.0" if="False" />
+      </node>
+</group>
+<!-- <node pkg="rviz" type="rviz" name="rviz" required="true"
+         args="-d $(find mbot)/rviz/mbot.rviz"/> -->
+</launch>
